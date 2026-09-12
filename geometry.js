@@ -1,5 +1,5 @@
 import {XMLParser, XMLValidator} from 'fast-xml-parser';
-export const SURFACES=['unknown','asphalt','gravel','trail','other','paved','unpaved'];
+export const SURFACES=['unknown','asphalt','gravel','trail'];
 export const num=value=>{if(value===null||value===undefined||value==='')throw Error('Ange ett giltigt tal.');const n=Number(value);if(!Number.isFinite(n))throw Error('Ange ett giltigt tal.');return n;};
 export function distance(a,b){const rad=Math.PI/180,h=Math.sin((b[0]-a[0])*rad/2)**2+Math.cos(a[0]*rad)*Math.cos(b[0]*rad)*Math.sin((b[1]-a[1])*rad/2)**2;return 6371008.8*2*Math.asin(Math.min(1,Math.sqrt(h)));}
 const arr=x=>x===undefined?[]:Array.isArray(x)?x:[x];

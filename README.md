@@ -77,7 +77,7 @@ Map attribution remains visible. The OSM public tile service is best effort and 
 unlimited traffic. `MAP_TILE_URL` and `MAP_TILE_CREDIT` can select another provider; comply with
 that provider's attribution and API-key requirements. The default provider requires no API key.
 
-## Surface detection fix
+## Automatic surface analysis and simplified categories
 
 The previous request used `out tags geom`. The `tags` output mode does not supply the full geometry
 needed for matching. Version 2 uses **`out body geom`** and explicitly rejects responses containing
@@ -86,30 +86,28 @@ ways without geometry, instead of silently reporting everything as unknown.
 The query also includes roads without a `surface` tag. Path and track tags may provide useful
 classification, and unknown parallel roads must participate in matching to avoid false assignments.
 
-After upgrading, open the route → **Redigera rutt → Hämta underlagsförslag** to run the corrected
-analysis. Existing routes are not automatically sent to an external map service.
+New GPX uploads automatically request surface analysis before returning the saved route. The upload
+dialog displays progress. If analysis fails, the route is still saved and shows a persistent warning.
+For existing routes, use **Redigera rutt → Hämta underlagsförslag** to retry analysis.
+Legacy other/paved/unpaved markings are merged into gravel at startup, preserving manual sources.
 The result reports how many roads were fetched, how much of the GPX matched and how much could
 be classified. Manual markings always win, including manually assigned unknown stretches.
 
 ### Classification
 
 - **Asphalt:** explicitly `surface=asphalt`.
-- **Gravel:** gravel, fine gravel, compacted or pebblestone; `tracktype=grade2` without a material
-  is an inferred gravel suggestion.
+- **Gravel:** the requested broad group, including gravel, compacted, paved, unpaved and other
+  materials. This is a display grouping, not a claim that each surface is physically gravel.
 - **Trail:** suitable path/footway/bridleway tags with natural or unspecified surface. This does
   not establish cycling access, MTB suitability or difficulty.
-- **Paved, material unknown:** `surface=paved`; this is not presented as asphalt.
-- **Unpaved, material unknown:** unpaved or soil-based surfaces; not automatically gravel.
-- **Other:** for example concrete, paving stones or wood.
 - **Unknown:** missing information, ambiguous matching or no nearby road.
 
 Matching uses nearby road geometry within approximately 30 metres. Conflicting close alternatives
 remain unknown. This is a geometric approximation, not Strava's classification or a full routing
 engine. Check crossings, parallel roads and GPS deviations and correct manually as needed.
 
-The analysis sends the route's bounding area, not the GPX file itself, to Overpass only after clicking
-the button. The service can be unavailable. Limits: 200 km route and a 1,200 km² bounding area,
-one request per minute. Larger routes can still be edited manually.
+The analysis sends the route's bounding area, not the GPX file itself, to Overpass automatically at import or when retrying analysis. The service can be unavailable. Limits: 200 km route and a 1,200 km² bounding area,
+requests are serialized; manual retries are limited to one per minute. Larger routes can still be edited manually.
 
 ## Editing routes, surfaces and cafés
 
@@ -162,3 +160,21 @@ References:
 - https://wiki.openstreetmap.org/wiki/Key:surface
 - https://operations.osmfoundation.org/policies/tiles/
 - https://nodejs.org/api/sqlite.html
+
+## Route markers and updating this version
+
+Race-course and Strava-segment markers are independent boolean fields, separate from the cycling
+category. A route can be MTB and a race course, or carry both markers. Filters combine with AND.
+Markers are descriptive; they do not import data from Strava.
+
+Stop the running server with Ctrl+C. Back up your existing data directory. Extract the update and
+replace application files in the existing project directory. Keep the existing data directory and
+config.json; the release ZIP contains no user data. Restart START-DOMAIN.bat and refresh with Ctrl+F5.
+Native selects now set dark color-scheme and explicit contrasting option colors for Windows menus.
+
+## Nearby starts
+
+Click Nära mig and grant browser location access to sort by straight-line distance to each route's
+first GPX point. Optional 10/25/50/100 km radii combine with all existing filters. Coordinates are
+kept only in browser memory and are not submitted to the application server or stored. Reloading
+clears the location. HTTPS or localhost is required. Location can be approximate on desktops.

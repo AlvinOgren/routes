@@ -3,10 +3,10 @@ export function classify(tags={}){
  const s=String(tags.surface||'').toLowerCase().trim();
  if(s==='asphalt')return {kind:'asphalt',source:'osm'};
  if(['gravel','fine_gravel','compacted','pebblestone'].includes(s))return {kind:'gravel',source:'osm'};
- if(['concrete','concrete:plates','concrete:lanes','paving_stones','sett','cobblestone','wood'].includes(s))return {kind:'other',source:'osm'};
- if(s==='paved')return {kind:'paved',source:'osm'};
+ if(['concrete','concrete:plates','concrete:lanes','paving_stones','sett','cobblestone','wood'].includes(s))return {kind:'gravel',source:'osm'};
+ if(s==='paved')return {kind:'gravel',source:'osm'};
  if(['path','bridleway','footway'].includes(tags.highway)&&(!s||['ground','dirt','earth','grass','mud','rock','unpaved','sand'].includes(s)))return {kind:'trail',source:s?'osm':'osm-inferred'};
- if(['unpaved','ground','dirt','earth','grass','mud','sand'].includes(s))return {kind:'unpaved',source:'osm'};
+ if(['unpaved','ground','dirt','earth','grass','mud','sand'].includes(s))return {kind:'gravel',source:'osm'};
  if(!s&&tags.tracktype==='grade2')return {kind:'gravel',source:'osm-inferred'};
  return {kind:'unknown',source:'unknown'};
 }

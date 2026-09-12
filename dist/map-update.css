@@ -7,3 +7,24 @@
 .thumb .leaflet-bottom{z-index:900}
 .card-content{display:block}
 .thumb{background:#c5ced0}
+
+/* Native menus use explicit contrasting colors, including Windows popups. */
+:root { color-scheme: dark; }
+select { color-scheme: dark; background-color: #14232e; color: #f3f7fa; border-color: #647988; }
+select option, select optgroup { background-color: #14232e; color: #f3f7fa; }
+select:focus-visible { outline: 2px solid #b5ef63; outline-offset: 3px; }
+input::placeholder,textarea::placeholder { color: #a9bac6; opacity: 1; }
+.route-tags { border: 1px solid #647988; border-radius: 8px; padding: 10px 14px; margin: 16px 0; }
+.route-tags legend { color: #dce7ed; padding: 0 6px; }
+.route-tags label.inline { display: flex; align-items: center; gap: 10px; color: #eaf2f6; }
+.route-tags input[type=checkbox] { width: 18px; height: 18px; margin: 0; }
+.filter-row { flex-wrap: wrap; }
+.badge { max-width: calc(100% - 24px); white-space: normal; }
+.leaflet-control-attribution svg { display: inline-block; width: 1em; height: .65em; }
+
+.location-controls { display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin:18px 0 24px; }
+.location-controls .inline { display:flex; align-items:center; gap:8px; }
+.location-controls .note { margin:0; }
+.start-distance { color:#c2deac; font-size:13px; margin-bottom:10px; }
+.start-distance:empty { display:none; }
+@media(max-width:480px){.location-controls .note{flex-basis:100%;}.location-controls select{max-width:160px;}}

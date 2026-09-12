@@ -1,12 +1,21 @@
 'use strict';
 const $=id=>document.getElementById(id);
-const COLORS={unknown:'#8996a1',asphalt:'#5ed6ed',gravel:'#eeb957',trail:'#bd99fc',other:'#f38dac'};
-const LABELS={unknown:'Okänt',asphalt:'Asfalt',gravel:'Grus',trail:'MTB-stig / stig',other:'Annat'};
+const COLORS={unknown:'#8996a1',asphalt:'#12a2c0',gravel:'#d99013',trail:'#9862df',other:'#de6389',paved:'#5e89b4',unpaved:'#b89b70'};
+const LABELS={unknown:'Okänt',asphalt:'Asfalt',gravel:'Grus',trail:'MTB-stig / stig',other:'Annat',paved:'Belagt · material okänt',unpaved:'Obelagt · material okänt'};
 const CATEGORIES={gravel:'Gravel',road:'Landsväg',mtb:'MTB',mixed:'Blandat'};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=(n,d=0)=>Number(n).toLocaleString('sv-SE',{minimumFractionDigits:d,maximumFractionDigits:d});
 const state={routes:[],route:null,admin:false,csrf:'',category:'all',limit:8,pick:null,cafe:null,selection:[],afterLogin:null,nav:0};
 let overview,detailMap,overviewLayers,routeLayers,hoverMarker,selectionLayer,toastTimer;
+let previewObserver;const previewMaps=[];
+function cleanPreviews(){previewObserver?.disconnect();for(const m of previewMaps)m.remove();previewMaps.length=0;}
+function mountPreviews(routes){
+ previewObserver=new IntersectionObserver(entries=>{for(const entry of entries){if(!entry.isIntersecting)continue;previewObserver.unobserve(entry.target);const r=routes.find(r=>r.id===entry.target.dataset.route);if(!r)continue;
+ const map=L.map(entry.target,{zoomControl:false,attributionControl:true,preferCanvas:true,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false});previewMaps.push(map);
+ L.tileLayer(state.tile_url,{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OSM</a>'+(state.tile_credit!=='OpenStreetMap'?' · '+esc(state.tile_credit):'')}).addTo(map);
+ const layer=L.layerGroup().addTo(map);drawRoute(map,layer,r,true);map.fitBounds(r.preview.map(p=>p.slice(0,2)),{padding:[18,18],maxZoom:14});
+ }},{threshold:.05});document.querySelectorAll('.preview-map').forEach(el=>previewObserver.observe(el));
+}
 function toast(message,failed=false){$('toast').textContent=message;$('toast').classList.toggle('failed',failed);$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,6500);}
 async function api(url,options={}){
  const headers={...(options.headers||{})};
@@ -63,9 +72,11 @@ function filtered(){
  const sort=$('sort').value;result.sort((a,b)=>sort==='short'?a.distance-b.distance:sort==='long'?b.distance-a.distance:sort==='climb'?(b.ascent??-1)-(a.ascent??-1):sort==='name'?a.name.localeCompare(b.name,'sv'):b.created-a.created);return result;
 }
 function renderLibrary(){
+ cleanPreviews();
  const routes=filtered();$('total').textContent=`${state.routes.length} sparade rutter`;$('results').textContent=`${routes.length} ${routes.length===1?'rutt':'rutter'}`;
  $('clear').hidden=!($('search').value||state.category!=='all'||$('length').value!=='all'||$('cafe-filter').checked||$('surface-filter').value!=='all');
- $('cards').innerHTML=routes.slice(0,state.limit).map(r=>`<a class="route-card" href="/rutt/${r.id}"><div class="thumb">${thumbnail(r)}<span class="badge">${CATEGORIES[r.category]}</span><span class="thumb-label">SPÅRÖVERSIKT</span></div><div class="card-content"><h2>${esc(r.name)}</h2><p class="card-location">${esc(r.location||'Ingen startplats angiven')}</p><div class="card-numbers"><div><b>${fmt(r.distance/1000,1)}</b> <span>km</span></div><div><b>${r.ascent===null?'—':fmt(r.ascent)}</b> <span>hm · ca</span></div></div><div class="card-footer"><div class="surface-bar">${surfaceBar(r.surfaces,r.distance)}</div>${r.cafe_count?`<span class="cafe-badge">☕ ${r.cafe_count} stopp</span>`:''}</div></div></a>`).join('');
+ $('cards').innerHTML=routes.slice(0,state.limit).map(r=>`<article class="route-card"><div class="thumb"><div class="preview-map map" data-route="${r.id}"></div><a class="preview-open" href="/rutt/${r.id}" aria-label="Öppna ${esc(r.name)}"></a><span class="badge">${CATEGORIES[r.category]}</span></div><a class="card-content" href="/rutt/${r.id}"><h2>${esc(r.name)}</h2><p class="card-location">${esc(r.location||'Ingen startplats angiven')}</p><div class="card-numbers"><div><b>${fmt(r.distance/1000,1)}</b> <span>km</span></div><div><b>${r.ascent===null?'—':fmt(r.ascent)}</b> <span>hm · ca</span></div></div><div class="card-footer"><div class="surface-bar">${surfaceBar(r.surfaces,r.distance)}</div>${r.cafe_count?`<span class="cafe-badge">☕ ${r.cafe_count} stopp</span>`:''}</div></a></article>`).join('');
+ mountPreviews(routes);
  if(!routes.length)$('cards').innerHTML=`<div class="empty"><div class="empty-icon" aria-hidden="true">↗</div><h2>${state.routes.length?'Ingen rutt matchar filtren':'Din första runda väntar'}</h2><p>${state.routes.length?'Prova en annan sökning eller rensa filtren.':'Lägg till en GPX-fil för att samla rutten, underlagen och fikastoppen här.'}</p><button class="primary" id="empty-action">${state.routes.length?'Rensa filter':'Lägg till första rutten'}</button></div>`;
  $('empty-action')?.addEventListener('click',()=>state.routes.length?clearFilters():requestUpload());$('more').hidden=routes.length<=state.limit;
  if(overview){overviewLayers.clearLayers();routes.slice(0,100).forEach(r=>drawRoute(overview,overviewLayers,r,true));if(routes.length)fit(overview,routes.slice(0,100).flatMap(r=>r.preview));}
@@ -90,7 +101,8 @@ function renderDetail(r,refit=true){
  $('elevation-warning').hidden=r.elevation_coverage===1;$('elevation-warning').textContent=r.elevation_coverage===0?'Filen saknar användbar höjddata.':'Höjddata saknas på delar av spåret. Höjdmeterna kan vara underskattade.';
  $('description').textContent=r.description||'Ingen beskrivning ännu.';$('source').hidden=!r.source_url;if(r.source_url)$('source').href=r.source_url;
  $('surface-bar').innerHTML=surfaceBar(r.surfaces,r.distance);
- $('surface-legend').innerHTML=Object.keys(COLORS).map(k=>{const length=r.surfaces.filter(s=>s.kind===k).reduce((v,s)=>v+s.end-s.start,0);if(!length)return '';const estimate=r.surfaces.some(s=>s.kind===k&&s.source==='osm');return `<div class="legend-row"><span><i class="swatch" style="background:${COLORS[k]}"></i>${LABELS[k]}${estimate?' <small>förslag</small>':''}</span><span>${fmt(length/1000,1)} km <small>· ${fmt(100*length/r.distance)} %</small></span></div>`;}).join('');
+ $('surface-legend').innerHTML=Object.keys(COLORS).map(k=>{const length=r.surfaces.filter(s=>s.kind===k).reduce((v,s)=>v+s.end-s.start,0);if(!length)return '';const estimate=r.surfaces.some(s=>s.kind===k&&s.source.startsWith('osm'));return `<div class="legend-row"><span><i class="swatch" style="background:${COLORS[k]}"></i>${LABELS[k]}${estimate?' <small>förslag</small>':''}</span><span>${fmt(length/1000,1)} km <small>· ${fmt(100*length/r.distance)} %</small></span></div>`;}).join('');
+ const diag=r.surface_diagnostics;$('osm-status').textContent=diag?`${diag.geometry_ways} kartlagda vägar hämtades. ${diag.matched_percent} % av spåret matchade en väg; ${diag.classified_percent} % kunde klassificeras före manuella ändringar.`:'';
  $('cafe-count').textContent=r.cafes.length?`(${r.cafes.length})`:'';
  $('cafes').innerHTML=r.cafes.length?r.cafes.slice().sort((a,b)=>a.distance-b.distance).map(c=>`<div class="cafe-item"><button class="locate" data-cafe="${c.id}">☕ ${esc(c.name)} ↗</button><p>${esc(c.note)}</p><span class="distance">Nära ${fmt(c.distance/1000,1)} km från start</span>${state.admin?` <button class="text-button" data-remove-cafe="${c.id}">Ta bort</button>`:''}</div>`).join(''):'<p class="muted small">Inga fikastopp tillagda ännu.</p>';
  $('edit').hidden=!state.admin;for(const name of ['name','location','category','description','source_url'])$('meta-form').elements[name].value=r[name];
@@ -100,7 +112,7 @@ function renderDetail(r,refit=true){
  requestAnimationFrame(()=>{detailMap.invalidateSize();if(refit)fit(detailMap,r.points);});renderChart(r);
 }
 async function navigate(path,push=true){
- const ticket=++state.nav;if(push)history.pushState({},'',path);state.pick=null;state.cafe=null;state.selection=[];clearSelection();$('editor').hidden=true;$('map-hint').textContent='⊕ RUTTEN';
+ const ticket=++state.nav;if(push)history.pushState({},'',path);cleanPreviews();state.pick=null;state.cafe=null;state.selection=[];clearSelection();$('editor').hidden=true;$('map-hint').textContent='⊕ RUTTEN';
  const match=path.match(/^\/rutt\/([a-f0-9]{16})\/?$/);
  if(match){$('library').hidden=true;$('detail').hidden=false;$('route-name').textContent='Hämtar rutten…';try{const r=await api('/api/routes/'+match[1]);if(ticket!==state.nav)return;renderDetail(r);}catch(e){toast(e.message,true);navigate('/',true);}}
  else{$('detail').hidden=true;$('library').hidden=false;document.title='Alvins Ruttbank';await loadLibrary().catch(e=>toast(e.message,true));if(overview)requestAnimationFrame(()=>{overview.invalidateSize();renderLibrary();});}
@@ -141,7 +153,7 @@ $('pick-surface').onclick=()=>{clearSelection();state.pick='surface';state.selec
 $('pick-cafe').onclick=()=>{clearSelection();state.pick='cafe';$('map-hint').textContent='Klicka där fikastoppet ligger.';$('route-map').scrollIntoView({behavior:'smooth',block:'center'});};
 $('cafe-form').onsubmit=async e=>{e.preventDefault();if(!state.cafe)return toast('Placera fikastoppet på kartan först.',true);if(await mutate({action:'cafe',...state.cafe,...Object.fromEntries(new FormData(e.target))},e.submitter)){e.target.reset();state.cafe=null;$('cafe-position').textContent='Ingen plats vald.';}};
 $('cafes').onclick=e=>{const locate=e.target.closest('[data-cafe]'),remove=e.target.closest('[data-remove-cafe]');if(locate){const c=state.route.cafes.find(c=>c.id===locate.dataset.cafe);detailMap.setView([c.lat,c.lon],16);$('route-map').scrollIntoView({behavior:'smooth',block:'center'});}if(remove&&confirm('Ta bort det här fikastoppet?'))mutate({action:'remove_cafe',cafe_id:remove.dataset.removeCafe},remove);};
-$('suggest').onclick=async()=>{const button=$('suggest');button.disabled=true;$('osm-status').textContent='Hämtar kartdata och jämför med spåret…';const key=state.route.id;try{const r=await api('/api/routes/'+key+'/suggest-surfaces',{method:'POST',body:{revision:state.route.revision}});if(state.route?.id===key){renderDetail(r,false);const known=r.surfaces.filter(s=>s.kind!=='unknown').reduce((n,s)=>n+s.end-s.start,0);$('osm-status').textContent=`Underlag finns nu för ${fmt(100*known/r.distance)} % av rutten. Kontrollera förslagen på kartan.`;}toast('Underlagsförslagen är sparade.');}catch(e){$('osm-status').textContent=e.message;toast(e.message,true);}finally{button.disabled=false;}};
+$('suggest').onclick=async()=>{const button=$('suggest');button.disabled=true;$('osm-status').textContent='Hämtar kartdata och jämför med spåret…';const key=state.route.id;try{const r=await api('/api/routes/'+key+'/suggest-surfaces',{method:'POST',body:{revision:state.route.revision}});if(state.route?.id===key){renderDetail(r,false);if(r.surface_diagnostics?.classified_percent===0)$('osm-status').textContent+=' Inget tillförlitligt underlag hittades. Kontrollera manuellt; grått är inte en uppgift om vägtypen.';}toast('Karthämtningen är klar. Se resultatet under Kartförslag.');}catch(e){$('osm-status').textContent=e.message;toast(e.message,true);}finally{button.disabled=false;}};
 $('delete-route').onclick=async()=>{if(!confirm('Radera den här rutten och dess fikastopp? Detta går inte att ångra.'))return;try{await api('/api/routes/'+state.route.id,{method:'DELETE',body:{}});state.route=null;await navigate('/');toast('Rutten har raderats.');}catch(e){toast(e.message,true);}};
 async function init(){try{Object.assign(state,await api('/api/session'));$('admin').textContent=state.admin?'Logga ut':'Administrera';if(typeof L==='undefined')throw Error('Kartbiblioteket saknas. Packa upp hela projektmappen på nytt.');overview=newMap('overview','overview-message');overviewLayers=L.layerGroup().addTo(overview);await navigate(location.pathname,false);}catch(e){$('results').textContent='Kunde inte ladda ruttbanken';toast(e.message,true);}}
 init();

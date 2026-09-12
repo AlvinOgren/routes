@@ -1,0 +1,9 @@
+/* Clear geographical context, while retaining the dark application shell. */
+.map .leaflet-tile-pane{filter:saturate(.55) brightness(.98)}
+.preview-map{position:absolute;inset:0;z-index:0}
+.preview-open{position:absolute;inset:0;z-index:450}
+.thumb .badge{z-index:500;pointer-events:none}
+.thumb .leaflet-control-attribution{font-size:10px!important;position:relative;z-index:900}
+.thumb .leaflet-bottom{z-index:900}
+.card-content{display:block}
+.thumb{background:#c5ced0}

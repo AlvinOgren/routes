@@ -1,195 +1,164 @@
-# Alvins Ruttbank
+# Alvins Route Library — Node.js
 
-En lokal webbapp för att samla cykelrutter från GPX-filer. GitHub kan användas för versionshantering;
-webbappen och rutterna körs och lagras på din dator. Ingen GitHub-publicering ingår.
+A self-hosted GPX route library with search, filters, map previews, elevation profiles,
+surface overlays, café stops and GPX downloads. The interface is in Swedish; source code,
+variables and filenames are in English. **Python is not required.**
 
-## Starta i Windows
+## Upgrade from the Python version
 
-1. Packa upp **hela ZIP-filen** i en vanlig mapp, exempelvis `C:\Users\alvin\git\ruttbanken`.
-2. Dubbelklicka **START.bat**. Python 3.10 eller senare behövs, liksom internet vid första starten.
-   Python-paketen installeras automatiskt i projektets `.venv`.
-3. Webbläsaren öppnar **http://localhost:8767**.
-4. Klicka **Lägg till rutt**. Ange administratörskoden som visas i det svarta startfönstret.
-5. Välj en GPX-fil, fyll i namn, beskrivning och ruttyp och klicka **Importera rutt**.
+1. Stop the old app with Ctrl+C.
+2. Back up its entire **data** folder while the app is stopped.
+3. Extract this ZIP into a new folder, for example `C:\Users\alvin\git\route-library`.
+4. Copy the old `data` folder into the new project folder, next to `server.js`.
+5. Install **Node.js 24 LTS or later** from https://nodejs.org/ if needed.
+6. Run **START-DOMAIN.bat** for `https://rutter.alvins.se`, or **START-LOCAL.bat** for local-only testing.
 
-Koden sparas mellan omstarter. Besökare behöver ingen kod för att söka, se eller ladda ned rutter.
-Lämna startfönstret öppet medan appen används. Ctrl+C stänger servern.
-Om `py` saknas, installera Python från https://www.python.org/downloads/windows/.
-Port 8767 är separat från din Yatzy-app på 8765.
+The existing `data/routes.sqlite3` database, route IDs, links and administrator code are retained.
+You do not need to re-import GPX files. Sign in again after the upgrade. Do not copy the old `.venv`.
 
-## Vad som finns
+## First-time setup
 
-- Sökning i ruttnamn, beskrivning och startområde.
-- Filter för ruttyp, distans, underlag och fikastopp; sortering på datum, namn, längd och stigning.
-- Förhandsvisning av det verkliga GPX-spårets form i varje ruttkort.
-- Interaktiv översiktskarta samt en egen detaljsida med permanent länk per rutt.
-- Mörk OpenStreetMap-bakgrund, färgkodade sträckor, start/mål och fikamarkörer.
-- Distans, uppskattade höjdmeter och interaktiv höjdprofil.
-- Redigering av information, vägunderlag och fikastopp för administratören.
-- Valfria automatiska underlagsförslag från OpenStreetMap via Overpass.
-- GPX-nedladdning utan aktivitetsdata som tid, puls eller effekt.
-- Lokal SQLite-databas: rutterna finns kvar när appen startas om.
+Install Node.js 24 or later and extract the entire ZIP into a regular folder.
+Double-click **START-LOCAL.bat**. The first launch installs the locked npm dependencies.
+The local address is **http://localhost:8767**. The administrator code is printed in the terminal.
+Click **Lägg till rutt**, enter that code, select a GPX file and import it.
 
-Gravel/landsväg/MTB är ruttyp som du väljer. Underlag är en separat uppgift per sträcka.
-En gravelrutt kan därför innehålla både asfalt, grus och stig.
+Visitors can browse and download routes without signing in. The code grants permission to add,
+edit and delete routes. Keep the terminal open; Ctrl+C stops the server.
 
-## Underlag längs rutten
-
-GPX innehåller normalt koordinater och ibland höjd, men inte vägunderlag.
-Vid import blir därför hela spåret **okänt**, oavsett vald ruttyp.
-
-Öppna rutten och välj **Redigera rutt**:
-
-1. Ange från/till kilometer, eller klicka **Välj två punkter på kartan**.
-2. Klicka på två punkter på spåret. Vid en korsning eller där rutten passerar samma plats flera gånger,
-   kontrollera kilometerfälten: kartvalet väljer den närmaste registrerade punkten och kan välja fel passage.
-3. Välj underlag och **Spara sträckan**. Du kan markera hela rutten och sedan korrigera mindre delar.
-
-Grus visas i gult, asfalt i cyan, stig i lila, annat i rosa och okänt i grått.
-Sparade intervall kan överlappa: den senaste manuella markeringen ersätter den tidigare i det valda intervallet.
-
-### Automatiska kartförslag
-
-**Hämta underlagsförslag** frågar Overpass om kartlagda vägunderlag inom ruttens geografiska område.
-Detta sker först när du trycker på knappen. GPX-filen skickas inte; dess avgränsande kartområde skickas.
-Resultatet sparas, så besökare behöver inte göra nya hämtningar.
-
-- Matchningen jämför spåret med kartlagda vägar i närheten, inom ungefär 18 meter.
-- Otydliga matchningar till parallella vägar med olika underlag blir okända.
-- `surface=asphalt` blir asfalt. Grus, fint grus och kompakterat underlag grupperas som grus.
-- Stigar med angivet naturunderlag grupperas som stig. Detta är **inte** information om tillåten cykling,
-  svårighetsgrad eller om rutten passar din cykel.
-- Generella `paved` eller `unpaved` blir inte automatiskt asfalt eller grus.
-- **Manuella markeringar behålls**, även om du manuellt valt okänt.
-- Gräns: 200 km rutt och ett avgränsande område på högst 1 200 km². Större rutter kan fortfarande
-  importeras och markeras manuellt. Kartförfrågningar begränsas till en per minut.
-- Overpass är en extern tjänst som kan vara upptagen eller otillgänglig. Då visas ett fel och de
-  tidigare underlagen behålls.
-
-Detta är en konservativ geometrisk uppskattning, **inte Stravas klassificering eller en fullständig
-vägnätsmatchning**. Kontrollera förslagen, särskilt korsningar, parallella stigar och GPS-avvikelser.
-Saknad OSM-information lämnas okänd.
-
-## Fikastopp
-
-Öppna **Redigera rutt**, fyll i namn och anteckning, välj **Placera på kartan**, klicka på platsen
-och spara fikastoppet. Listan visar ungefär vid vilken kilometer i rutten stoppet ligger.
-Markören kan ligga en bit från rutten om caféet kräver en omväg; någon ny väg dit beräknas inte.
-Fikastoppen inkluderas som waypoints i GPX-exporten. Öppettider hämtas inte automatiskt.
-
-## På din domän
-
-Projektet är förberett för **https://rutter.alvins.se**, men inget är publicerat eller ändrat i Cloudflare.
-Använd din befintliga tunnel om du vill köra från samma Windows-dator som Yatzy:
-
-1. Cloudflare → **Networking → Tunnels → alvins-pc → Routes → Add route → Published application**.
-2. Fyll i:
-
-   | Fält | Värde |
-   |---|---|
-   | Subdomain | `rutter` |
-   | Domain | `alvins.se` |
-   | Path | Lämna tomt |
-   | Service URL | `http://127.0.0.1:8767` |
-
-3. Spara routen. Yatzys route lämnas kvar.
-4. Stäng Ruttbankens tidigare startfönster och kör **START-DOMAN.bat**.
-5. Öppna HTTPS-adressen, även när du använder appen på serverdatorn.
-
-Du behöver inte ändra namnservrar eller installera cloudflared igen. Datorn behöver vara på,
-internetansluten och vaken. Besökare kan se alla uppladdade rutter; administratörskoden ger skrivrättigheter.
-Ruttdatabasen går senare att flytta med appen till en server som kan köra Python.
-
-För en annan domän ändrar du `PUBLIC_URL` i START-DOMAN.bat och motsvarande tunnelroute.
-Ange inte HTTP-adressen till den offentliga webbplatsen; använd HTTPS.
-
-## Kartor och internet
-
-Bakgrundskartan använder OpenStreetMaps standardkartor med en mörk färgbehandling i webbläsaren.
-Kartkällan är riktig geodata. Karttexter och vägar färgsätts om; detta är inte en satellitkarta eller 3D-karta.
-Ruttlinjerna och deras underlagsfärger påverkas inte av färgbehandlingen.
-Det finns synlig källhänvisning på kartan. En internetanslutning behövs för bakgrundskartan och OSM-förslag.
-Utan kartanslutning finns uppladdade spår, information och nedladdningar fortfarande lokalt.
-
-Ingen API-nyckel krävs för den medföljande standardkartan. OSM:s offentliga servrar är en best-effort-tjänst
-med användningsregler och passar inte obegränsad trafik eller nedladdning av offlinekartor.
-Appen hämtar endast kartbilder för den visade kartan och låter webbläsaren sköta caching.
-Översikten visar högst 100 ruttspår samtidigt; fler rutter är fortfarande sökbara och öppningsbara.
-
-För en annan kartleverantör kan du sätta miljövariabler före start:
+For Windows CMD or VS Code's CMD terminal:
 
 ```cmd
-set MAP_TILE_URL=https://din-leverantor/{z}/{x}/{y}.png
-set MAP_TILE_CREDIT=Leverantörens namn
+cd C:\Users\alvin\git\route-library
+node start.cjs
 ```
 
-Kontrollera leverantörens attribution, nycklar och villkor. Standardens mörka CSS-filter i
-`dist/styles.css` bör tas bort om leverantören redan levererar en mörk karta.
+## Host rutter.alvins.se on your own PC
 
-## Data och GitHub
+The Node server listens on **127.0.0.1:8767**. Your existing Cloudflare Tunnel connects that local
+server to **https://rutter.alvins.se**. The app and database remain on your PC. GitHub is only for
+source control. Neither GitHub Pages nor a paid application host is required by this setup.
 
-All beständig data ligger i **data/**:
+If the route already exists, keep it. Otherwise, in Cloudflare open:
+**Networking → Tunnels → alvins-pc → Routes → Add route → Published application**.
 
-- `routes.sqlite3`: rutternas koordinater, namn, beskrivningar, underlag och fikastopp.
-- `config.json`: sessionshemlighet och lokal administratörskod. Dela inte denna fil.
+| Field | Value |
+|---|---|
+| Subdomain | `rutter` |
+| Domain | `alvins.se` |
+| Path | Leave empty |
+| Service URL | `http://127.0.0.1:8767` |
 
-Ta backup genom att **stänga appen och kopiera hela data-mappen**. Vid återställning stänger du appen
-och lägger tillbaka mappen. Git ignorerar data-mappen, så att GPX-positioner och administratörskod inte
-råkar laddas upp till GitHub. Behåll den även när du uppdaterar programfilerna.
+Save the route, then run **START-DOMAIN.bat**. Use **https://rutter.alvins.se** on your PC too.
+The public domain uses HTTPS; the local tunnel service uses HTTP. Do not enter HTTPS for the local
+service URL. No router port forwarding is needed. Your existing cloudflared Windows service is reused.
+Do not reinstall it, change nameservers or remove the Yatzy route on port 8765.
 
-Du kan byta kod genom att ange `ADMIN_PASSWORD` som miljövariabel innan start. Gör sedan en omstart.
+The PC must remain switched on, connected and awake, with this app running. When it stops,
+the public website stops responding. All imported routes are visible to visitors. The admin code
+is not included in the public interface. No Cloudflare account settings were changed by this update.
 
-För att versionshantera koden i CMD, från projektmappen:
+Direct domain startup in CMD:
 
 ```cmd
-git init
-git add .
-git commit -m "Skapa ruttbanken"
-git branch -M main
+set PUBLIC_URL=https://rutter.alvins.se
+node start.cjs
 ```
 
-Skapa sedan ett tomt GitHub-repository och följ GitHubs instruktioner för att lägga till remote och pusha.
-Aktivera inte GitHub Pages. GitHub används enbart för källkoden.
+## Map previews and visibility
 
-## GPX och beräkningar
+Route cards now show real OpenStreetMap tiles behind the route. Tiles load only when a card becomes
+visible. Click the map or route information to open the detail page. The main maps are also lighter:
+the previous dark inversion is removed while the surrounding interface remains dark.
+Internet access is required for background tiles. Saved routes and GPX downloads remain local.
 
-- Import: `.gpx`, högst 20 MB och 60 000 punkter. Stöd för både track segments och route points.
-- Filer med ogiltiga koordinater, trasig XML eller mindre än en meters spår avvisas.
-- Distans beräknas som avstånd över jordytan mellan GPX-punkterna. Separata spårsegment kopplas inte ihop.
-- Höjdmeter använder en tröskel på 3 m för att minska små höjdvariationer. Inga externa höjddata hämtas.
-  Värdena är uppskattningar och kan avvika från Strava, Garmin och andra appar.
-- Vid ofullständig eller saknad höjddata visas detta tydligt.
-- **Exporten innehåller geometri, höjd, ruttnamn, beskrivning och fikastopp.** Ursprungliga tidsstämplar,
-  puls, kadens och effekt följer inte med. Underlagsfärger är webbappens data och överförs inte som en
-  standardiserad underlagsvisning till cykeldatorn.
-- En Stravalänk sparas som länk; appen loggar inte in på Strava eller hämtar rutter därifrån automatiskt.
-  Exportera rutten som GPX och importera filen här.
+Tiles use the browser's normal cache. No offline map downloads or prefetching are performed.
+Map attribution remains visible. The OSM public tile service is best effort and is not intended for
+unlimited traffic. `MAP_TILE_URL` and `MAP_TILE_CREDIT` can select another provider; comply with
+that provider's attribution and API-key requirements. The default provider requires no API key.
 
-## Teknik och verifiering
+## Surface detection fix
 
-HTML, CSS och JavaScript i gränssnittet, Leaflet 1.9.4 för kartan. Python/Flask/Waitress och SQLite
-för server, åtkomst och beständig lagring. Leaflet är medpackat med sin BSD-licens.
-Övriga beroenden installeras separat enligt `requirements.txt`.
+The previous request used `out tags geom`. The `tags` output mode does not supply the full geometry
+needed for matching. Version 2 uses **`out body geom`** and explicitly rejects responses containing
+ways without geometry, instead of silently reporting everything as unknown.
 
-Verifierat i utvecklingsmiljön: GPX-import, distans/höjdberäkning, flera spårsegment, GPX-export,
-beständig lagring, administratörsåtkomst, ändringskonflikter, underlagsintervall, kartans färggränser,
-och OSM-matchning med testdata. Björsäter-filen har provlästs med 9 561 punkter.
-Livehämtning från Overpass, gränssnittet i en riktig webbläsare och Windows-startfilerna har inte
-testats här. De tidigare uppladdade privata rutterna medföljer inte projektet.
+The query also includes roads without a `surface` tag. Path and track tags may provide useful
+classification, and unknown parallel roads must participate in matching to avoid false assignments.
 
-Kör tester från projektmappen efter första starten:
+After upgrading, open the route → **Redigera rutt → Hämta underlagsförslag** to run the corrected
+analysis. Existing routes are not automatically sent to an external map service.
+The result reports how many roads were fetched, how much of the GPX matched and how much could
+be classified. Manual markings always win, including manually assigned unknown stretches.
+
+### Classification
+
+- **Asphalt:** explicitly `surface=asphalt`.
+- **Gravel:** gravel, fine gravel, compacted or pebblestone; `tracktype=grade2` without a material
+  is an inferred gravel suggestion.
+- **Trail:** suitable path/footway/bridleway tags with natural or unspecified surface. This does
+  not establish cycling access, MTB suitability or difficulty.
+- **Paved, material unknown:** `surface=paved`; this is not presented as asphalt.
+- **Unpaved, material unknown:** unpaved or soil-based surfaces; not automatically gravel.
+- **Other:** for example concrete, paving stones or wood.
+- **Unknown:** missing information, ambiguous matching or no nearby road.
+
+Matching uses nearby road geometry within approximately 30 metres. Conflicting close alternatives
+remain unknown. This is a geometric approximation, not Strava's classification or a full routing
+engine. Check crossings, parallel roads and GPS deviations and correct manually as needed.
+
+The analysis sends the route's bounding area, not the GPX file itself, to Overpass only after clicking
+the button. The service can be unavailable. Limits: 200 km route and a 1,200 km² bounding area,
+one request per minute. Larger routes can still be edited manually.
+
+## Editing routes, surfaces and cafés
+
+Choose **Redigera rutt**. Set the start/end distance or select two points on the map, choose a
+surface and save. Later markings overwrite earlier ones within the selected interval.
+When a route passes the same place more than once, check the kilometre fields after map selection.
+
+For cafés, enter a name/note, choose **Placera på kartan**, click the location and save.
+The distance corresponds to the nearest route point; the app does not calculate a detour.
+Cafés are included as GPX waypoints. Opening hours are not fetched automatically.
+
+## Data, backups and GitHub
+
+`data/routes.sqlite3` contains route data. `data/config.json` contains the administrator code.
+Stop the app and copy the entire data folder to make a backup. Keep this folder during upgrades.
+It and `node_modules` are ignored by Git. Do not publish private database or configuration files.
+
+Use normal Git commands for the source. GitHub Pages should remain disabled. The startup helper
+installs dependencies again when `package-lock.json` changes.
+Environment variables: `PUBLIC_URL`, `ADMIN_PASSWORD`, `MAP_TILE_URL`, `MAP_TILE_CREDIT`.
+Admin sessions are kept in memory and expire after 24 hours or a restart.
+
+## GPX and elevation
+
+Maximum 20 MB and 60,000 points per file. Track segments and route points are supported.
+Separate tracks are not connected by artificial lines. Distance is calculated from coordinates.
+Elevation gain uses a 3 m threshold to suppress small fluctuations and may differ from Strava/Garmin.
+Missing elevation is indicated. Exports include geometry, height, names, descriptions and cafés,
+but not timestamps, heart rate or power. Surface colours are stored in this app and are not a
+standard GPX surface layer for cycling computers. Strava URLs are stored as links, not imported
+automatically: export the route as GPX first.
+
+## Development and validation
+
+Node.js, Express, built-in SQLite, multer and fast-xml-parser; Leaflet for maps.
+Dependencies are locked in `package-lock.json`. Leaflet's license is included in `dist/vendor`.
 
 ```cmd
-.venv\Scripts\python -m unittest discover -s tests -v
-node tests/geometry.test.cjs
+npm ci
+npm test
 ```
 
-Node behövs bara för JavaScript-testet, inte för att köra appen.
+Tests cover GPX import/export, existing database compatibility, authentication, updates, surface
+intervals, geometry matching and missing-geometry errors. Live Overpass validation was blocked by
+HTTP errors/timeouts from this environment. Windows startup and map appearance in a browser
+still need to be checked on your PC.
 
-Källor och kartvillkor:
-
-- https://leafletjs.com/reference.html
-- https://www.openstreetmap.org/copyright
-- https://operations.osmfoundation.org/policies/tiles/
+References:
+- https://dev.overpass-api.de/overpass-doc/en/targets/formats.html
 - https://wiki.openstreetmap.org/wiki/Key:surface
-- https://wiki.openstreetmap.org/wiki/Overpass_API/Overpass_QL
+- https://operations.osmfoundation.org/policies/tiles/
+- https://nodejs.org/api/sqlite.html

@@ -1,7 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const COLORS={unknown:'#8996a1',asphalt:'#12a2c0',gravel:'#d99013',trail:'#9862df'};
-const LABELS={unknown:'Okänt',asphalt:'Asfalt',gravel:'Grus',trail:'MTB-stig / stig'};
+const LABELS={asphalt:'Asfalt',gravel:'Grus',trail:'MTB-stig', unknown:'Okänt'};
 const CATEGORIES={gravel:'Gravel',road:'Landsväg',mtb:'MTB'};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=(n,d=0)=>Number(n).toLocaleString('sv-SE',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -270,7 +270,31 @@ function renderDetail(r,refit=true){
  $('elevation-warning').hidden=r.elevation_coverage===1;$('elevation-warning').textContent=r.elevation_coverage===0?'Filen saknar användbar höjddata.':'Höjddata saknas på delar av spåret. Höjdmeterna kan vara underskattade.';
  $('description').textContent=r.description||'Ingen beskrivning ännu.';$('source').hidden=!r.source_url;if(r.source_url)$('source').href=r.source_url;
  $('surface-bar').innerHTML=surfaceBar(r.surfaces,r.distance);
- $('surface-legend').innerHTML=Object.keys(COLORS).map(k=>{const length=r.surfaces.filter(s=>s.kind===k).reduce((v,s)=>v+s.end-s.start,0);if(!length)return '';const estimate=r.surfaces.some(s=>s.kind===k&&s.source.startsWith('osm'));return `<div class="legend-row"><span><i class="swatch" style="background:${COLORS[k]}"></i>${LABELS[k]}${estimate?' <small>förslag</small>':''}</span><span>${fmt(length/1000,1)} km <small>· ${fmt(100*length/r.distance)} %</small></span></div>`;}).join('');
+
+    $('surface-legend').innerHTML = ['asphalt', 'gravel', 'trail', 'unknown']
+    .map((k) => {
+        const length = r.surfaces
+        .filter((s) => s.kind === k)
+        .reduce((v, s) => v + s.end - s.start, 0);
+
+        if (!length) return '';
+
+        return `
+        <div class="legend-row">
+            <span>
+            <i class="swatch" style="background:${COLORS[k]}"></i>
+            ${LABELS[k]}
+            </span>
+
+            <span>
+            ${fmt(length / 1000, 1)} km
+            <small>· ${fmt((100 * length) / r.distance)} %</small>
+            </span>
+        </div>
+        `;
+    })
+    .join('');
+
  $('surface-warning').hidden=r.surface_status!=='failed';$('surface-warning').textContent=r.surface_status==='failed'?'Rutten är sparad, men underlagen kunde inte hämtas. '+(r.surface_error||'')+' Du kan försöka igen under Redigera rutt → Kartförslag.':'';const diag=r.surface_diagnostics;$('osm-status').textContent=diag?`${diag.geometry_ways} kartlagda vägar hämtades. ${diag.matched_percent} % av spåret matchade en väg; ${diag.classified_percent} % kunde klassificeras före manuella ändringar.`:'';
  $('cafe-count').textContent=r.cafes.length?`(${r.cafes.length})`:'';
  $('cafes').innerHTML=r.cafes.length?r.cafes.slice().sort((a,b)=>a.distance-b.distance).map(c=>`<div class="cafe-item"><button class="locate" data-cafe="${c.id}">☕ ${esc(c.name)} ↗</button><p>${esc(c.note)}</p><span class="distance">Nära ${fmt(c.distance/1000,1)} km från start</span>${state.admin?` <button class="text-button" data-remove-cafe="${c.id}">Ta bort</button>`:''}</div>`).join(''):'<p class="muted small">Inga fikastopp tillagda ännu.</p>';

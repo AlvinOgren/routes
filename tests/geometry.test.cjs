@@ -1,0 +1,11 @@
+const fs=require('node:fs');const vm=require('node:vm');const assert=require('node:assert/strict');
+const source=fs.readFileSync('dist/app.js','utf8').split("document.addEventListener('click'")[0];
+const context={console,URLSearchParams,setTimeout,clearTimeout};vm.createContext(context);vm.runInContext(source,context);
+const pts=[[58,15,10,0,0],[58.001,15,20,100,0],[59,16,40,100,1],[59.001,16,50,200,1]];
+const spans=[{start:0,end:40,kind:'gravel'},{start:40,end:160,kind:'asphalt'},{start:160,end:200,kind:'unknown'}];
+const paths=context.coloredPaths(pts,spans);
+assert.equal(paths.length,4);assert.equal(paths[0].kind,'gravel');assert.equal(paths[1].segment,0);assert.equal(paths[2].segment,1);
+assert.ok(Math.abs(paths[0].coords.at(-1)[0]-58.0004)<1e-9);
+assert.equal(context.pointAt(pts,150)[2],45);
+assert.ok(context.thumbnail({preview:pts}).includes('<svg'));
+console.log('Map geometry: surface boundaries, track gaps, interpolation and previews passed.');

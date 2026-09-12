@@ -9,14 +9,14 @@ assert.ok(Math.abs(paths[0].coords.at(-1)[0]-58.0004)<1e-9);
 assert.equal(context.pointAt(pts,150)[2],45);
 assert.ok(context.thumbnail({preview:pts}).includes('<svg'));
 console.log('Map geometry: surface boundaries, track gaps, interpolation and previews passed.');
-const controls=Object.fromEntries(['search','surface-filter','race-filter','segment-filter','cafe-filter','length','sort','radius'].map(id=>[id,{value:id==='search'?'':'all',checked:false}]));
+const controls=Object.fromEntries(['search','surface-filter','race-filter','segment-filter','cafe-filter','length','sort'].map(id=>[id,{value:id==='search'?'':'all',checked:false}]));
 context.document={getElementById:id=>controls[id]};
 vm.runInContext(`state.position={latitude:58,longitude:15};state.category='mtb';state.routes=[
 {id:'far',category:'mtb',is_race_course:true,is_strava_segment:true,preview:[[59,15]],distance:1000},
 {id:'near',category:'mtb',is_race_course:true,is_strava_segment:true,preview:[[58.01,15]],distance:1000},
 {id:'road',category:'road',is_race_course:true,preview:[[58,15]],distance:1000}];`,context);
-controls.sort.value='near';controls['race-filter'].checked=true;controls['segment-filter'].checked=true;
+vm.runInContext('state.nearby=true;',context);controls.sort.value='new';controls['race-filter'].checked=true;controls['segment-filter'].checked=true;
 assert.equal(context.filtered().map(r=>r.id).join(','),'near,far');
-controls.radius.value='10';assert.equal(context.filtered().map(r=>r.id).join(','),'near');
+assert.equal(context.filtered().length,2); // Nearby sorting must not impose a distance cutoff.
 assert.ok(Math.abs(context.startDistance({preview:[[59,15]]})-111.195)<.01);
-console.log('Nearby sorting, radius and combined MTB/race/segment filters passed.');
+console.log('Nearby sorting without cutoff and combined MTB/race/segment filters passed.');

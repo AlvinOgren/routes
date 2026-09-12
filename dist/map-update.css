@@ -22,9 +22,6 @@ input::placeholder,textarea::placeholder { color: #a9bac6; opacity: 1; }
 .badge { max-width: calc(100% - 24px); white-space: normal; }
 .leaflet-control-attribution svg { display: inline-block; width: 1em; height: .65em; }
 
-.location-controls { display:flex; flex-wrap:wrap; align-items:center; gap:14px; margin:18px 0 24px; }
-.location-controls .inline { display:flex; align-items:center; gap:8px; }
-.location-controls .note { margin:0; }
+.location-status { margin: 12px 0 20px; color: #cedce5; }
 .start-distance { color:#c2deac; font-size:13px; margin-bottom:10px; }
 .start-distance:empty { display:none; }
-@media(max-width:480px){.location-controls .note{flex-basis:100%;}.location-controls select{max-width:160px;}}

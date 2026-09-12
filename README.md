@@ -175,6 +175,10 @@ Native selects now set dark color-scheme and explicit contrasting option colors 
 ## Nearby starts
 
 Click Nära mig and grant browser location access to sort by straight-line distance to each route's
-first GPX point. Optional 10/25/50/100 km radii combine with all existing filters. Coordinates are
+first GPX point. The Nära mig chip sits beside the cycling filters. It only sorts; there is no distance cutoff.
+Category, race, segment and café filters still exclude nonmatching routes. Click Nära mig again
+to restore the selected sort order. Selecting another sort or clearing filters also ends nearby mode. Coordinates are
 kept only in browser memory and are not submitted to the application server or stored. Reloading
 clears the location. HTTPS or localhost is required. Location can be approximate on desktops.
+
+This update versions frontend assets and revalidates application files to avoid stale scripts after upgrades.

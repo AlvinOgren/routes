@@ -58,8 +58,8 @@ export function createApp({dataDir=path.join(ROOT,'data'),password=process.env.A
  app.post('/api/routes/:id/suggest-surfaces',admin,async(req,res)=>{const r=load(req.params.id),b=body(req);if(b.revision!==r.revision)throw fail('Öppna rutten på nytt.',409);if(osmBusy||Date.now()-osmLast<60000)throw fail('Vänta en minut mellan karthämtningarna.',429);osmBusy=true;osmLast=Date.now();try{const result=await queuedSuggestion(r.points);let spans=result.spans;for(const s of r.surfaces)if(s.source==='manual')spans=paint(spans,s.start,s.end,s.kind,r.distance);if(load(r.id).revision!==r.revision)throw fail('Rutten ändrades under hämtningen. Inga förslag sparades.',409);r.surfaces=spans;r.surface_diagnostics=result.diagnostics;r.surface_status='complete';delete r.surface_error;save(r);res.json(r);}finally{osmBusy=false;}});
  app.delete('/api/routes/:id',admin,(req,res)=>{load(req.params.id);db.prepare('DELETE FROM routes WHERE id=?').run(req.params.id);res.json({ok:true});});
  app.get('/api/routes/:id/download',(req,res)=>{const r=load(req.params.id);res.attachment(r.name+'.gpx').type('application/gpx+xml').send(exportGPX(r));});
- app.get(['/', '/rutt/:id'],(req,res)=>res.sendFile(path.join(ROOT,'dist','index.html')));
- app.use(express.static(path.join(ROOT,'dist'),{dotfiles:'deny',index:false}));
+ app.get(['/', '/rutt/:id'],(req,res)=>res.set('Cache-Control','no-store').sendFile(path.join(ROOT,'dist','index.html')));
+ app.use(express.static(path.join(ROOT,'dist'),{dotfiles:'deny',index:false,setHeaders:(res,file)=>{if(!file.includes(path.sep+'vendor'+path.sep))res.setHeader('Cache-Control','no-cache');}}));
  app.use((req,res)=>res.status(404).json({error:'Sidan finns inte.'}));
  app.use((err,req,res,next)=>{const message=err instanceof multer.MulterError?'Välj en GPX-fil på högst 20 MB.':err.message;res.status(err.status||400).json({error:message||'Begäran kunde inte hanteras.'});});
  return {app,db,adminCode};

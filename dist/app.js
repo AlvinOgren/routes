@@ -5,7 +5,7 @@ const LABELS={unknown:'Okänt',asphalt:'Asfalt',gravel:'Grus',trail:'MTB-stig / 
 const CATEGORIES={gravel:'Gravel',road:'Landsväg',mtb:'MTB',mixed:'Blandat'};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=(n,d=0)=>Number(n).toLocaleString('sv-SE',{minimumFractionDigits:d,maximumFractionDigits:d});
-const state={position:null,routes:[],route:null,admin:false,csrf:'',category:'all',limit:8,pick:null,cafe:null,selection:[],afterLogin:null,nav:0};
+const state={position:null,nearby:false,locationRequest:0,routes:[],route:null,admin:false,csrf:'',category:'all',limit:8,pick:null,cafe:null,selection:[],afterLogin:null,nav:0};
 let overview,detailMap,overviewLayers,routeLayers,hoverMarker,selectionLayer,toastTimer;
 let previewObserver;const previewMaps=[];
 function cleanPreviews(){previewObserver?.disconnect();for(const m of previewMaps)m.remove();previewMaps.length=0;}
@@ -73,22 +73,21 @@ function startDistance(route){
 }
 function filtered(){
  const query=$('search').value.trim().toLocaleLowerCase('sv');const surface=$('surface-filter').value;
- let result=state.routes.filter(r=>(state.category==='all'||r.category===state.category)&&(!query||[r.name,r.description,r.location].join(' ').toLocaleLowerCase('sv').includes(query))&&(!$('race-filter').checked||r.is_race_course)&&(!$('segment-filter').checked||r.is_strava_segment)&&(!$('cafe-filter').checked||r.cafe_count>0)&&(surface==='all'||r.surface_totals[surface]>0));
+ let result=state.routes.filter(r=>(state.category==='all'||r.category===state.category)&&(!query||[r.name,r.description,r.location].join(' ').toLocaleLowerCase('sv').includes(query))&&(!$('race-filter').checked||r.is_race_course===true)&&(!$('segment-filter').checked||r.is_strava_segment===true)&&(!$('cafe-filter').checked||r.cafe_count>0)&&(surface==='all'||r.surface_totals[surface]>0));
  if($('length').value!=='all'){const [a,b]=$('length').value.split(':').map(Number);result=result.filter(r=>r.distance/1000>=a&&r.distance/1000<b);}
- if(state.position&&$('radius').value!=='all')result=result.filter(r=>startDistance(r)<=Number($('radius').value));
- const sort=$('sort').value;result.sort((a,b)=>sort==='near'?startDistance(a)-startDistance(b):sort==='short'?a.distance-b.distance:sort==='long'?b.distance-a.distance:sort==='climb'?(b.ascent??-1)-(a.ascent??-1):sort==='name'?a.name.localeCompare(b.name,'sv'):b.created-a.created);return result;
+ const sort=state.nearby?'near':$('sort').value;result.sort((a,b)=>sort==='near'?startDistance(a)-startDistance(b):sort==='short'?a.distance-b.distance:sort==='long'?b.distance-a.distance:sort==='climb'?(b.ascent??-1)-(a.ascent??-1):sort==='name'?a.name.localeCompare(b.name,'sv'):b.created-a.created);return result;
 }
 function renderLibrary(){
  cleanPreviews();
  const routes=filtered();$('total').textContent=`${state.routes.length} sparade rutter`;$('results').textContent=`${routes.length} ${routes.length===1?'rutt':'rutter'}`;
- $('clear').hidden=!($('radius').value!=='all'||$('sort').value==='near'||$('search').value||state.category!=='all'||$('length').value!=='all'||$('race-filter').checked||$('segment-filter').checked||$('cafe-filter').checked||$('surface-filter').value!=='all');
+ $('clear').hidden=!(state.nearby||$('search').value||state.category!=='all'||$('length').value!=='all'||$('race-filter').checked||$('segment-filter').checked||$('cafe-filter').checked||$('surface-filter').value!=='all');
  $('cards').innerHTML=routes.slice(0,state.limit).map(r=>`<article class="route-card"><div class="thumb"><div class="preview-map map" data-route="${r.id}"></div><a class="preview-open" href="/rutt/${r.id}" aria-label="Öppna ${esc(r.name)}"></a><span class="badge">${CATEGORIES[r.category]}${r.is_race_course?' · Tävlingsbana':''}${r.is_strava_segment?' · Stravasegment':''}</span></div><a class="card-content" href="/rutt/${r.id}"><h2>${esc(r.name)}</h2><p class="card-location">${esc(r.location||'Ingen startplats angiven')}</p><div class="start-distance">${state.position?fmt(startDistance(r),1)+' km till start · fågelvägen':''}</div><div class="card-numbers"><div><b>${fmt(r.distance/1000,1)}</b> <span>km</span></div><div><b>${r.ascent===null?'—':fmt(r.ascent)}</b> <span>hm · ca</span></div></div><div class="card-footer"><div class="surface-bar">${surfaceBar(r.surfaces,r.distance)}</div>${r.cafe_count?`<span class="cafe-badge">☕ ${r.cafe_count} stopp</span>`:''}</div></a></article>`).join('');
  mountPreviews(routes);
  if(!routes.length)$('cards').innerHTML=`<div class="empty"><div class="empty-icon" aria-hidden="true">↗</div><h2>${state.routes.length?'Ingen rutt matchar filtren':'Din första runda väntar'}</h2><p>${state.routes.length?'Prova en annan sökning eller rensa filtren.':'Lägg till en GPX-fil för att samla rutten, underlagen och fikastoppen här.'}</p><button class="primary" id="empty-action">${state.routes.length?'Rensa filter':'Lägg till första rutten'}</button></div>`;
  $('empty-action')?.addEventListener('click',()=>state.routes.length?clearFilters():requestUpload());$('more').hidden=routes.length<=state.limit;
  if(overview){overviewLayers.clearLayers();routes.slice(0,100).forEach(r=>drawRoute(overview,overviewLayers,r,true));if(routes.length)fit(overview,routes.slice(0,100).flatMap(r=>r.preview));}
 }
-function clearFilters(){$('radius').value='all';$('sort').value='new';$('search').value='';$('length').value='all';$('surface-filter').value='all';$('cafe-filter').checked=false;$('race-filter').checked=false;$('segment-filter').checked=false;setCategory('all');}
+function clearFilters(){stopNearby();$('sort').value='new';$('search').value='';$('length').value='all';$('surface-filter').value='all';$('cafe-filter').checked=false;$('race-filter').checked=false;$('segment-filter').checked=false;setCategory('all');}
 function setCategory(category){state.category=category;state.limit=8;document.querySelectorAll('[data-category]').forEach(b=>{const active=b.dataset.category===category;b.classList.toggle('active',active);b.setAttribute('aria-pressed',active);});renderLibrary();}
 async function loadLibrary(){state.routes=(await api('/api/routes')).routes;renderLibrary();}
 function renderChart(r){
@@ -142,17 +141,23 @@ async function mutate(data,button){if(button)button.disabled=true;try{const r=aw
 document.addEventListener('click',e=>{const close=e.target.closest('[data-close]');if(close)$(close.dataset.close).close();const a=e.target.closest('a[href]');if(a&&a.origin===location.origin&&(a.pathname==='/'||a.pathname.startsWith('/rutt/'))&&!e.ctrlKey&&!e.metaKey&&!e.shiftKey&&e.button===0){e.preventDefault();navigate(a.pathname);}});
 window.addEventListener('popstate',()=>navigate(location.pathname,false));
 $('upload').onclick=requestUpload;
-$('locate').onclick=()=>{
- const button=$('locate'),status=$('location-status');
- if(!navigator.geolocation){status.textContent='Platsåtkomst kräver HTTPS eller localhost i en webbläsare med platsstöd.';return;}
- button.disabled=true;status.textContent='Hämtar din plats… Tillåt platsåtkomst i webbläsaren.';
+function stopNearby(){
+ state.nearby=false;state.locationRequest++;const button=$('locate');button.disabled=false;button.textContent='Nära mig';button.classList.remove('active');button.setAttribute('aria-pressed','false');button.removeAttribute('aria-busy');$('location-status').hidden=true;
+}
+function activateNearby(){
+ if(state.nearby){stopNearby();renderLibrary();return;}
+ const button=$('locate'),status=$('location-status');status.hidden=false;
+ const showError=message=>{button.disabled=false;button.textContent='Nära mig';button.removeAttribute('aria-busy');status.textContent=message;toast(message,true);};
+ if(!navigator.geolocation){showError('Platsåtkomst saknas. Använd HTTPS eller localhost och aktivera platstjänster.');return;}
+ const ticket=++state.locationRequest;button.disabled=true;button.setAttribute('aria-busy','true');button.textContent='Söker plats…';status.textContent='Tillåt platsåtkomst i webbläsaren. Söker din nuvarande position…';
  navigator.geolocation.getCurrentPosition(result=>{
-  state.position={latitude:result.coords.latitude,longitude:result.coords.longitude};
-  $('sort').querySelector('[value="near"]').disabled=false;$('sort').value='near';$('radius').disabled=false;
-  status.textContent='Sorterat efter avstånd till start, fågelvägen.'+(result.coords.accuracy>1000?' Din position är ungefärlig.':'');
-  button.disabled=false;button.textContent='◎ Uppdatera min plats';state.limit=8;renderLibrary();
- },error=>{button.disabled=false;status.textContent=error.code===1?'Platsåtkomst nekades. Tillåt plats i webbläsarens webbplatsinställningar och försök igen.':error.code===3?'Det tog för lång tid att hitta din plats. Försök igen.':'Din plats kunde inte hittas. Kontrollera datorns eller mobilens platsinställningar.';},{enableHighAccuracy:false,timeout:15000,maximumAge:300000});
-};
+  if(ticket!==state.locationRequest)return;
+  state.position={latitude:result.coords.latitude,longitude:result.coords.longitude};state.nearby=true;
+  button.disabled=false;button.textContent='Nära mig';button.removeAttribute('aria-busy');button.classList.add('active');button.setAttribute('aria-pressed','true');
+  status.textContent='Närmaste start först · avstånd fågelvägen.'+(result.coords.accuracy>1000?' Din position är ungefärlig.':'');state.limit=8;renderLibrary();
+ },error=>{if(ticket!==state.locationRequest)return;showError(error.code===1?'Platsåtkomst nekades. Tillåt plats för webbplatsen och aktivera platstjänster i Windows eller mobilen.':error.code===3?'Positionen kunde inte hittas inom 20 sekunder. Kontrollera platstjänster och försök igen.':'Din position kunde inte hämtas. Kontrollera platstjänster och försök igen.');},{enableHighAccuracy:true,timeout:20000,maximumAge:0});
+}
+$('locate').onclick=activateNearby;
 $('admin').onclick=()=>{if(!state.admin)return requireAdmin(()=>toast('Du är inloggad.'));api('/api/logout',{method:'POST',body:{}}).then(()=>{state.admin=false;$('admin').textContent='Administrera';$('edit').hidden=true;$('editor').hidden=true;if(state.route)renderDetail(state.route,false);toast('Du är utloggad.');}).catch(e=>toast(e.message,true));};
 $('login-form').onsubmit=async e=>{e.preventDefault();const button=e.submitter;button.disabled=true;try{await api('/api/login',{method:'POST',body:{password:e.target.elements.password.value}});state.admin=true;$('admin').textContent='Logga ut';$('login-dialog').close();e.target.reset();if(state.route){$('edit').hidden=false;renderDetail(state.route,false);}const next=state.afterLogin;state.afterLogin=null;next?.();}catch(err){$('login-error').textContent=err.message;}finally{button.disabled=false;}};
 $('file').onchange=fileChanged;
@@ -161,7 +166,7 @@ $('file').onchange=fileChanged;
 $('dropzone').addEventListener('drop',e=>{if(e.dataTransfer.files.length){const transfer=new DataTransfer();transfer.items.add(e.dataTransfer.files[0]);$('file').files=transfer.files;fileChanged();}});
 $('upload-form').onsubmit=async e=>{e.preventDefault();const f=$('file').files[0];if(!f)return;if(!f.name.toLowerCase().endsWith('.gpx')||f.size>20*1024*1024){$('upload-error').textContent='Välj en GPX-fil på högst 20 MB.';return;}const button=$('upload-submit');button.disabled=true;button.textContent='Importerar och hämtar underlag…';$('upload-progress').textContent='Hämtar underlag från kartan. Det kan ta upp till en minut, eller längre om en annan import pågår.';$('upload-error').textContent='';try{const form=new FormData(e.target);form.set('file',f);const r=await api('/api/routes',{method:'POST',body:form});$('upload-dialog').close();e.target.reset();fileChanged();await navigate('/rutt/'+r.id);toast(r.surface_status==='failed'?'Rutten är sparad, men underlagen kunde inte hämtas. Se meddelandet på ruttsidan.':'Rutten och underlagsanalysen är sparade.',r.surface_status==='failed');}catch(err){$('upload-error').textContent=err.message;}finally{button.disabled=false;button.textContent='Importera rutt';$('upload-progress').textContent='';}};
 let searchTimer;$('search').oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{state.limit=8;renderLibrary();},150);};
-['length','sort','cafe-filter','surface-filter','race-filter','segment-filter','radius'].forEach(id=>$(id).onchange=()=>{state.limit=8;renderLibrary();});
+['length','sort','cafe-filter','surface-filter','race-filter','segment-filter'].forEach(id=>$(id).onchange=()=>{if(id==='sort')stopNearby();state.limit=8;renderLibrary();});
 $('categories').onclick=e=>{const b=e.target.closest('[data-category]');if(b)setCategory(b.dataset.category);};$('clear').onclick=clearFilters;$('more').onclick=()=>{state.limit+=8;renderLibrary();};
 $('fit-overview').onclick=()=>fit(overview,filtered().slice(0,100).flatMap(r=>r.preview));$('fit-detail').onclick=()=>fit(detailMap,state.route.points);
 $('edit').onclick=()=>{$('editor').hidden=false;$('editor').scrollIntoView({behavior:'smooth',block:'start'});};$('close-editor').onclick=()=>{$('editor').hidden=true;state.pick=null;clearSelection();$('map-hint').textContent='⊕ RUTTEN';};

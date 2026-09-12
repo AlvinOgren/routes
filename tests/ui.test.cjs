@@ -1,0 +1,24 @@
+const {JSDOM}=require('jsdom');
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const root=process.cwd();
+const dom=new JSDOM(fs.readFileSync(root+'/dist/index.html','utf8'),{url:'https://rutter.alvins.se',runScripts:'outside-only'});
+const w=dom.window;
+w.IntersectionObserver=class{observe(){}disconnect(){}};
+w.scrollTo=()=>{};
+require('node:vm').runInContext(fs.readFileSync(root+'/dist/app.js','utf8').replace(/init\(\);\s*$/,''),dom.getInternalVMContext());
+const base={name:'Test',description:'',location:'',distance:1000,ascent:20,surfaces:[{start:0,end:1000,kind:'gravel'}],surface_totals:{gravel:1000},preview:[[58,15,0,0,0],[58.01,15,10,1000,0]],cafe_count:0,created:1};
+const routes=[{...base,id:'gravel',category:'gravel'},{...base,id:'road',category:'road',cafe_count:1},{...base,id:'mtb-race',category:'mtb',is_race_course:true,created:3},{...base,id:'mtb-segment',category:'mtb',is_strava_segment:true,preview:[[59,15,0,0,0],[59.01,15,10,1000,0]],created:4},{...base,id:'mixed',category:'mixed'}];
+require('node:vm').runInContext('state.routes='+JSON.stringify(routes)+';renderLibrary();',dom.getInternalVMContext());
+const ids=()=>[...w.document.querySelectorAll('.preview-map')].map(x=>x.dataset.route).sort();
+const click=sel=>w.document.querySelector(sel).click();
+for(const [category,expected] of [['gravel',['gravel']],['road',['road']],['mtb',['mtb-race','mtb-segment']]]){click('[data-category='+category+']');assert.deepEqual(ids(),expected);}
+click('[data-category=all]');click('#race-filter');assert.deepEqual(ids(),['mtb-race']);click('#race-filter');click('#segment-filter');assert.deepEqual(ids(),['mtb-segment']);click('#segment-filter');click('#cafe-filter');assert.deepEqual(ids(),['road']);click('#clear');assert.equal(ids().length,5);
+let success,error,options;
+Object.defineProperty(w.navigator,'geolocation',{value:{getCurrentPosition:(a,b,c)=>{success=a;error=b;options=c;}}});
+click('#locate');assert.match(w.document.querySelector('#locate').textContent,/Söker/);assert.equal(options.maximumAge,0);success({coords:{latitude:59,longitude:15,accuracy:20}});assert.equal(w.document.querySelector('.preview-map').dataset.route,'mtb-segment');assert.equal(w.document.querySelector('#locate').getAttribute('aria-pressed'),'true');assert.equal(ids().length,5);
+click('[data-category=mtb]');assert.deepEqual(ids(),['mtb-race','mtb-segment']);assert.equal(w.document.querySelector('.preview-map').dataset.route,'mtb-segment');click('#race-filter');assert.deepEqual(ids(),['mtb-race']);click('#clear');assert.equal(w.document.querySelector('#locate').getAttribute('aria-pressed'),'false');assert.equal(ids().length,5);
+click('#locate');error({code:1});assert.match(w.document.querySelector('#location-status').textContent,/nekades/);assert.equal(w.document.querySelector('#locate').disabled,false);
+click('#locate');success({coords:{latitude:59,longitude:15,accuracy:20}});w.document.querySelector('#sort').value='short';w.document.querySelector('#sort').dispatchEvent(new w.Event('change'));assert.equal(w.document.querySelector('#locate').getAttribute('aria-pressed'),'false');
+assert.equal(w.document.querySelector('#radius'),null);assert.equal(w.document.querySelector('[data-category=mixed]'),null);assert.equal(w.document.querySelector('h1').textContent,'Rutter');assert.equal(w.document.querySelector('#locate').parentElement.id,'categories');
+console.log('DOM interaction tests passed: category/race/segment/cafe filters, nearby permission/sorting/errors/reset, independent MTB filter and requested layout.');
+w.close();

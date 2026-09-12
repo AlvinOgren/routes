@@ -13,7 +13,7 @@ const random=()=>randomBytes(24).toString('hex');
 const equal=(a,b)=>{const aa=Buffer.from(String(a||'')),bb=Buffer.from(String(b||''));return aa.length===bb.length&&timingSafeEqual(aa,bb);};
 const fail=(message,status=400)=>Object.assign(new Error(message),{status});
 const text=(v='',max=4000,required=false)=>{if(typeof v!=='string'||v.trim().length>max||(required&&!v.trim()))throw fail('Kontrollera textfältens längd och ruttnamnet.');return v.trim();};
-function metadata(b){const category=b.category||'mixed';if(!['gravel','road','mtb','mixed'].includes(category))throw fail('Välj en ruttyp.');const source_url=text(b.source_url,500);if(source_url){let u;try{u=new URL(source_url);}catch{throw fail('Ogiltig ursprungslänk.');}if(!['http:','https:'].includes(u.protocol))throw fail('Länken måste börja med https:// eller http://.');}return {name:text(b.name,120,true),description:text(b.description),location:text(b.location,120),category,source_url,is_race_course:b.is_race_course===true||b.is_race_course==='on',is_strava_segment:b.is_strava_segment===true||b.is_strava_segment==='on'};}
+function metadata(b){const category=b.category||'gravel';if(!['gravel','road','mtb'].includes(category))throw fail('Välj en ruttyp.');const source_url=text(b.source_url,500);if(source_url){let u;try{u=new URL(source_url);}catch{throw fail('Ogiltig ursprungslänk.');}if(!['http:','https:'].includes(u.protocol))throw fail('Länken måste börja med https:// eller http://.');}return {name:text(b.name,120,true),description:text(b.description),location:text(b.location,120),category,source_url,is_race_course:b.is_race_course===true||b.is_race_course==='on',is_strava_segment:b.is_strava_segment===true||b.is_strava_segment==='on'};}
 export function createApp({dataDir=path.join(ROOT,'data'),password=process.env.ADMIN_PASSWORD,publicURL=process.env.PUBLIC_URL||'',suggest=fetchSuggestions}={}){
  mkdirSync(dataDir,{recursive:true});const configPath=path.join(dataDir,'config.json');
  const config=existsSync(configPath)?JSON.parse(readFileSync(configPath,'utf8')):{secret:random(),admin_code:randomBytes(12).toString('base64url')};
@@ -24,6 +24,7 @@ export function createApp({dataDir=path.join(ROOT,'data'),password=process.env.A
  // Normalize existing routes while retaining manual markings and all route metadata.
  for(const row of db.prepare('SELECT id,payload FROM routes').all()){
   const route=JSON.parse(row.payload);let changed=false;
+  if(route.category==='mixed'){route.category='gravel';changed=true;}
   for(const span of route.surfaces||[])if(['other','paved','unpaved'].includes(span.kind)){span.kind='gravel';changed=true;}
   for(const key of ['is_race_course','is_strava_segment'])if(route[key]===undefined){route[key]=false;changed=true;}
   if(changed)db.prepare('UPDATE routes SET payload=? WHERE id=?').run(JSON.stringify(route),row.id);

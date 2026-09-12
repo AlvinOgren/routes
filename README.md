@@ -182,3 +182,6 @@ kept only in browser memory and are not submitted to the application server or s
 clears the location. HTTPS or localhost is required. Location can be approximate on desktops.
 
 This update versions frontend assets and revalidates application files to avoid stale scripts after upgrades.
+
+Only Gravel, Road and MTB are selectable categories. Legacy mixed routes become Gravel on startup.
+The separate surface filter has been removed. Surface analysis and route coloring remain available.

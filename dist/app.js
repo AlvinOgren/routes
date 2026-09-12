@@ -2,7 +2,7 @@
 const $=id=>document.getElementById(id);
 const COLORS={unknown:'#8996a1',asphalt:'#12a2c0',gravel:'#d99013',trail:'#9862df'};
 const LABELS={unknown:'Okänt',asphalt:'Asfalt',gravel:'Grus',trail:'MTB-stig / stig'};
-const CATEGORIES={gravel:'Gravel',road:'Landsväg',mtb:'MTB',mixed:'Blandat'};
+const CATEGORIES={gravel:'Gravel',road:'Landsväg',mtb:'MTB'};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmt=(n,d=0)=>Number(n).toLocaleString('sv-SE',{minimumFractionDigits:d,maximumFractionDigits:d});
 const state={position:null,nearby:false,locationRequest:0,routes:[],route:null,admin:false,csrf:'',category:'all',limit:8,pick:null,cafe:null,selection:[],afterLogin:null,nav:0};
@@ -72,22 +72,22 @@ function startDistance(route){
  return 6371.0088*2*Math.asin(Math.min(1,Math.sqrt(h)));
 }
 function filtered(){
- const query=$('search').value.trim().toLocaleLowerCase('sv');const surface=$('surface-filter').value;
- let result=state.routes.filter(r=>(state.category==='all'||r.category===state.category)&&(!query||[r.name,r.description,r.location].join(' ').toLocaleLowerCase('sv').includes(query))&&(!$('race-filter').checked||r.is_race_course===true)&&(!$('segment-filter').checked||r.is_strava_segment===true)&&(!$('cafe-filter').checked||r.cafe_count>0)&&(surface==='all'||r.surface_totals[surface]>0));
+ const query=$('search').value.trim().toLocaleLowerCase('sv');
+ let result=state.routes.filter(r=>(state.category==='all'||r.category===state.category)&&(!query||[r.name,r.description,r.location].join(' ').toLocaleLowerCase('sv').includes(query))&&(!$('race-filter').checked||r.is_race_course===true)&&(!$('segment-filter').checked||r.is_strava_segment===true)&&(!$('cafe-filter').checked||r.cafe_count>0));
  if($('length').value!=='all'){const [a,b]=$('length').value.split(':').map(Number);result=result.filter(r=>r.distance/1000>=a&&r.distance/1000<b);}
  const sort=state.nearby?'near':$('sort').value;result.sort((a,b)=>sort==='near'?startDistance(a)-startDistance(b):sort==='short'?a.distance-b.distance:sort==='long'?b.distance-a.distance:sort==='climb'?(b.ascent??-1)-(a.ascent??-1):sort==='name'?a.name.localeCompare(b.name,'sv'):b.created-a.created);return result;
 }
 function renderLibrary(){
  cleanPreviews();
  const routes=filtered();$('total').textContent=`${state.routes.length} sparade rutter`;$('results').textContent=`${routes.length} ${routes.length===1?'rutt':'rutter'}`;
- $('clear').hidden=!(state.nearby||$('search').value||state.category!=='all'||$('length').value!=='all'||$('race-filter').checked||$('segment-filter').checked||$('cafe-filter').checked||$('surface-filter').value!=='all');
- $('cards').innerHTML=routes.slice(0,state.limit).map(r=>`<article class="route-card"><div class="thumb"><div class="preview-map map" data-route="${r.id}"></div><a class="preview-open" href="/rutt/${r.id}" aria-label="Öppna ${esc(r.name)}"></a><span class="badge">${CATEGORIES[r.category]}${r.is_race_course?' · Tävlingsbana':''}${r.is_strava_segment?' · Stravasegment':''}</span></div><a class="card-content" href="/rutt/${r.id}"><h2>${esc(r.name)}</h2><p class="card-location">${esc(r.location||'Ingen startplats angiven')}</p><div class="start-distance">${state.position?fmt(startDistance(r),1)+' km till start · fågelvägen':''}</div><div class="card-numbers"><div><b>${fmt(r.distance/1000,1)}</b> <span>km</span></div><div><b>${r.ascent===null?'—':fmt(r.ascent)}</b> <span>hm · ca</span></div></div><div class="card-footer"><div class="surface-bar">${surfaceBar(r.surfaces,r.distance)}</div>${r.cafe_count?`<span class="cafe-badge">☕ ${r.cafe_count} stopp</span>`:''}</div></a></article>`).join('');
+ $('clear').hidden=!(state.nearby||$('search').value||state.category!=='all'||$('length').value!=='all'||$('race-filter').checked||$('segment-filter').checked||$('cafe-filter').checked);
+ $('cards').innerHTML=routes.slice(0,state.limit).map(r=>`<article class="route-card"><div class="thumb"><div class="preview-map map" data-route="${r.id}"></div><a class="preview-open" href="/rutt/${r.id}" aria-label="Öppna ${esc(r.name)}"></a><span class="badge">${CATEGORIES[r.category]}${r.is_race_course?' · Tävlingsbana':''}${r.is_strava_segment?' · Stravasegment':''}</span></div><a class="card-content" href="/rutt/${r.id}"><h2>${esc(r.name)}</h2><p class="card-location">${esc(r.location||'Ingen startplats angiven')}</p><div class="start-distance">${state.position?fmt(startDistance(r),1)+' km till start · fågelvägen':''}</div><div class="card-numbers"><div><b>${fmt(r.distance/1000,1)}</b> <span>km</span></div><div><b>${r.ascent===null?'—':fmt(r.ascent)}</b> <span>hm</span></div></div><div class="card-footer"><div class="surface-bar">${surfaceBar(r.surfaces,r.distance)}</div>${r.cafe_count?`<span class="cafe-badge">☕ ${r.cafe_count} stopp</span>`:''}</div></a></article>`).join('');
  mountPreviews(routes);
  if(!routes.length)$('cards').innerHTML=`<div class="empty"><div class="empty-icon" aria-hidden="true">↗</div><h2>${state.routes.length?'Ingen rutt matchar filtren':'Din första runda väntar'}</h2><p>${state.routes.length?'Prova en annan sökning eller rensa filtren.':'Lägg till en GPX-fil för att samla rutten, underlagen och fikastoppen här.'}</p><button class="primary" id="empty-action">${state.routes.length?'Rensa filter':'Lägg till första rutten'}</button></div>`;
  $('empty-action')?.addEventListener('click',()=>state.routes.length?clearFilters():requestUpload());$('more').hidden=routes.length<=state.limit;
  if(overview){overviewLayers.clearLayers();routes.slice(0,100).forEach(r=>drawRoute(overview,overviewLayers,r,true));if(routes.length)fit(overview,routes.slice(0,100).flatMap(r=>r.preview));}
 }
-function clearFilters(){stopNearby();$('sort').value='new';$('search').value='';$('length').value='all';$('surface-filter').value='all';$('cafe-filter').checked=false;$('race-filter').checked=false;$('segment-filter').checked=false;setCategory('all');}
+function clearFilters(){stopNearby();$('sort').value='new';$('search').value='';$('length').value='all';$('cafe-filter').checked=false;$('race-filter').checked=false;$('segment-filter').checked=false;setCategory('all');}
 function setCategory(category){state.category=category;state.limit=8;document.querySelectorAll('[data-category]').forEach(b=>{const active=b.dataset.category===category;b.classList.toggle('active',active);b.setAttribute('aria-pressed',active);});renderLibrary();}
 async function loadLibrary(){state.routes=(await api('/api/routes')).routes;renderLibrary();}
 function renderChart(r){
@@ -166,7 +166,7 @@ $('file').onchange=fileChanged;
 $('dropzone').addEventListener('drop',e=>{if(e.dataTransfer.files.length){const transfer=new DataTransfer();transfer.items.add(e.dataTransfer.files[0]);$('file').files=transfer.files;fileChanged();}});
 $('upload-form').onsubmit=async e=>{e.preventDefault();const f=$('file').files[0];if(!f)return;if(!f.name.toLowerCase().endsWith('.gpx')||f.size>20*1024*1024){$('upload-error').textContent='Välj en GPX-fil på högst 20 MB.';return;}const button=$('upload-submit');button.disabled=true;button.textContent='Importerar och hämtar underlag…';$('upload-progress').textContent='Hämtar underlag från kartan. Det kan ta upp till en minut, eller längre om en annan import pågår.';$('upload-error').textContent='';try{const form=new FormData(e.target);form.set('file',f);const r=await api('/api/routes',{method:'POST',body:form});$('upload-dialog').close();e.target.reset();fileChanged();await navigate('/rutt/'+r.id);toast(r.surface_status==='failed'?'Rutten är sparad, men underlagen kunde inte hämtas. Se meddelandet på ruttsidan.':'Rutten och underlagsanalysen är sparade.',r.surface_status==='failed');}catch(err){$('upload-error').textContent=err.message;}finally{button.disabled=false;button.textContent='Importera rutt';$('upload-progress').textContent='';}};
 let searchTimer;$('search').oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(()=>{state.limit=8;renderLibrary();},150);};
-['length','sort','cafe-filter','surface-filter','race-filter','segment-filter'].forEach(id=>$(id).onchange=()=>{if(id==='sort')stopNearby();state.limit=8;renderLibrary();});
+['length','sort','cafe-filter','race-filter','segment-filter'].forEach(id=>$(id).onchange=()=>{if(id==='sort')stopNearby();state.limit=8;renderLibrary();});
 $('categories').onclick=e=>{const b=e.target.closest('[data-category]');if(b)setCategory(b.dataset.category);};$('clear').onclick=clearFilters;$('more').onclick=()=>{state.limit+=8;renderLibrary();};
 $('fit-overview').onclick=()=>fit(overview,filtered().slice(0,100).flatMap(r=>r.preview));$('fit-detail').onclick=()=>fit(detailMap,state.route.points);
 $('edit').onclick=()=>{$('editor').hidden=false;$('editor').scrollIntoView({behavior:'smooth',block:'start'});};$('close-editor').onclick=()=>{$('editor').hidden=true;state.pick=null;clearSelection();$('map-hint').textContent='⊕ RUTTEN';};

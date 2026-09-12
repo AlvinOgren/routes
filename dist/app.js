@@ -90,17 +90,180 @@ function renderLibrary(){
 function clearFilters(){stopNearby();$('sort').value='new';$('search').value='';$('length').value='all';$('cafe-filter').checked=false;$('race-filter').checked=false;$('segment-filter').checked=false;setCategory('all');}
 function setCategory(category){state.category=category;state.limit=8;document.querySelectorAll('[data-category]').forEach(b=>{const active=b.dataset.category===category;b.classList.toggle('active',active);b.setAttribute('aria-pressed',active);});renderLibrary();}
 async function loadLibrary(){state.routes=(await api('/api/routes')).routes;renderLibrary();}
+
 function renderChart(r){
- const p=r.points;const known=p.filter(v=>v[2]!==null);
- if(!known.length){$('chart').innerHTML='<p class="muted">GPX-filen saknar höjddata.</p>';$('elevation-info').textContent='';$('chart-readout').hidden=true;return;}
- $('chart-readout').hidden=false;const min=r.min_elevation,max=r.max_elevation,range=Math.max(10,max-min);
- const points=p.filter((_,i)=>i%Math.max(1,Math.floor(p.length/900))===0||i===p.length-1);
- const x=v=>35+v[3]/r.distance*830,y=v=>115-(v[2]-min)/range*95;
- let d='',previous=null;for(const v of points){if(v[2]===null){previous=null;continue;}d+=(previous&&v[4]===previous[4]?'L':'M')+x(v).toFixed(2)+' '+y(v).toFixed(2)+' ';previous=v;}
- $('chart').innerHTML=`<svg viewBox="0 0 900 145" preserveAspectRatio="none" role="img" aria-label="Höjdprofil, ${fmt(min)} till ${fmt(max)} meter"><path d="M35 115H865 M35 20H865" stroke="#2c3e4a" stroke-dasharray="3 6"/><path d="${d}" fill="none" stroke="#b5ef63" stroke-width="2.3" vector-effect="non-scaling-stroke"/><text x="35" y="138" fill="#9cabb7" font-size="12">0 km</text><text x="865" y="138" fill="#9cabb7" text-anchor="end" font-size="12">${fmt(r.distance/1000,1)} km</text></svg>`;
+ const p=r.points;
+ const known=p.filter(v=>v[2]!==null);
+
+ if(!known.length){
+  $('chart').innerHTML='<p class="muted">GPX-filen saknar höjddata.</p>';
+  $('elevation-info').textContent='';
+  $('chart-readout').hidden=true;
+  return;
+ }
+
+ $('chart-readout').hidden=false;
+
+ const min=r.min_elevation;
+ const max=r.max_elevation;
+ const range=Math.max(10,max-min);
+
+ const points=p.filter(
+  (_,i)=>i%Math.max(1,Math.floor(p.length/900))===0||i===p.length-1
+ );
+
+ const x=v=>35+v[3]/r.distance*830;
+ const y=v=>115-(v[2]-min)/range*95;
+
+ let d='';
+ let previous=null;
+
+ for(const v of points){
+  if(v[2]===null){
+   previous=null;
+   continue;
+  }
+
+  d+=(previous&&v[4]===previous[4]?'L':'M')
+   +x(v).toFixed(2)+' '
+   +y(v).toFixed(2)+' ';
+
+  previous=v;
+ }
+
+ $('chart').innerHTML=`
+  <svg
+   viewBox="0 0 900 145"
+   preserveAspectRatio="none"
+   role="img"
+   aria-label="Höjdprofil, ${fmt(min)} till ${fmt(max)} meter"
+  >
+   <path
+    d="M35 115H865 M35 20H865"
+    stroke="#2c3e4a"
+    stroke-dasharray="3 6"
+   />
+
+   <path
+    d="${d}"
+    fill="none"
+    stroke="#b5ef63"
+    stroke-width="2.3"
+    vector-effect="non-scaling-stroke"
+   />
+
+   <line
+    id="chart-hover-line"
+    x1="35"
+    x2="35"
+    y1="20"
+    y2="115"
+    stroke="#ffffff"
+    stroke-width="1.5"
+    opacity="0"
+    vector-effect="non-scaling-stroke"
+    pointer-events="none"
+   />
+
+   <circle
+    id="chart-hover-point"
+    cx="35"
+    cy="115"
+    r="5"
+    fill="#b5ef63"
+    stroke="#ffffff"
+    stroke-width="2"
+    opacity="0"
+    vector-effect="non-scaling-stroke"
+    pointer-events="none"
+   />
+
+   <text
+    x="35"
+    y="138"
+    fill="#9cabb7"
+    font-size="12"
+   >
+    0 km
+   </text>
+
+   <text
+    x="865"
+    y="138"
+    fill="#9cabb7"
+    text-anchor="end"
+    font-size="12"
+   >
+    ${fmt(r.distance/1000,1)} km
+   </text>
+  </svg>
+ `;
+
  $('elevation-info').textContent=`${fmt(min)}–${fmt(max)} m ö.h.`;
- $('chart').onpointermove=e=>{const box=$('chart').getBoundingClientRect();const f=Math.max(0,Math.min(1,((e.clientX-box.left)/box.width*900-35)/830));const v=pointAt(r.points,r.distance*f);$('chart-readout').textContent=`${fmt(v[3]/1000,2)} km från start · ${v[2]===null?'höjd saknas':fmt(v[2])+' m ö.h.'}`;if(detailMap){if(!hoverMarker)hoverMarker=L.circleMarker(v.slice(0,2),{radius:6,color:'#fff',fillColor:'#b5ef63',fillOpacity:1}).addTo(detailMap);else hoverMarker.setLatLng(v.slice(0,2));}};
+
+ const hoverLine=$('chart-hover-line');
+ const hoverPoint=$('chart-hover-point');
+
+ $('chart').onpointermove=e=>{
+  const box=$('chart').getBoundingClientRect();
+
+  const f=Math.max(
+   0,
+   Math.min(
+    1,
+    ((e.clientX-box.left)/box.width*900-35)/830
+   )
+  );
+
+  const v=pointAt(
+   r.points,
+   r.distance*f
+  );
+
+  const hoverX=35+f*830;
+
+  hoverLine.setAttribute('x1',hoverX);
+  hoverLine.setAttribute('x2',hoverX);
+  hoverLine.setAttribute('opacity','0.8');
+
+  if(v[2]!==null){
+   const hoverY=115-(v[2]-min)/range*95;
+
+   hoverPoint.setAttribute('cx',hoverX);
+   hoverPoint.setAttribute('cy',hoverY);
+   hoverPoint.setAttribute('opacity','1');
+  }else{
+   hoverPoint.setAttribute('opacity','0');
+  }
+
+  $('chart-readout').textContent=
+   `${fmt(v[3]/1000,2)} km från start · `+
+   `${v[2]===null?'höjd saknas':fmt(v[2])+' m ö.h.'}`;
+
+  if(detailMap){
+   if(!hoverMarker){
+    hoverMarker=L.circleMarker(
+     v.slice(0,2),
+     {
+      radius:6,
+      color:'#fff',
+      fillColor:'#b5ef63',
+      fillOpacity:1
+     }
+    ).addTo(detailMap);
+   }else{
+    hoverMarker.setLatLng(v.slice(0,2));
+   }
+  }
+ };
+
+ $('chart').onpointerleave=()=>{
+  hoverLine.setAttribute('opacity','0');
+  hoverPoint.setAttribute('opacity','0');
+ };
 }
+
+
 function renderDetail(r,refit=true){
  state.route=r;$('route-name').textContent=r.name;document.title=r.name+' · Alvins Ruttbank';$('route-category').textContent=[CATEGORIES[r.category],r.is_race_course?'Tävlingsbana':'',r.is_strava_segment?'Stravasegment':''].filter(Boolean).join(' · ');$('route-location').textContent=r.location||'Ingen startplats angiven';
  $('download').href='/api/routes/'+r.id+'/download';$('km').innerHTML=fmt(r.distance/1000,1)+' <small>km</small>';$('ascent').innerHTML=(r.ascent===null?'—':fmt(r.ascent))+' <small>m</small>';$('descent').innerHTML=(r.descent===null?'—':fmt(r.descent))+' <small>m</small>';
